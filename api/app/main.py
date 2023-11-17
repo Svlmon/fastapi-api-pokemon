@@ -1,61 +1,107 @@
-from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
-
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:root@localhost:3306/api-pokemon'
-db = SQLAlchemy(app)
+from fastapi import FastAPI, HTTPException, Depends, status
+from sqlalchemy import create_engine, Column, Integer, String, Float, Text, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
 
 
-#BDD
-class Type(db.Model):
-    name = db.Column(db.String(20), primary_key=True)
-    id = db.Column(db.Integer, nullable=False, unique=True, autoincrement=True)
+DATABASE_URL = "mysql+mysqlconnector://root:root@localhost:3306/api-pokemon"
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+Base = declarative_base()
 
-class Skill(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    description = db.Column(db.Text, default=None)
-    power = db.Column(db.Integer, default=None)
-    accuracy = db.Column(db.Integer, default=None)
-    max_life_point = db.Column(db.Integer, default=None)
-    type_name = db.Column(db.String(20), db.ForeignKey('type.name'))
-    
-    type = db.relationship('Type', backref=db.backref('skills'))
+class Type(Base):
+    __tablename__ = "type"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(20), unique=True, index=True)
 
-class Pokemon(db.Model):
-    id_pokedex = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(20), nullable=False)
-    size = db.Column(db.Float, default=None)
-    weight = db.Column(db.Float, default=None)
-    stats = db.Column(db.Integer, default=None)
-    image = db.Column(db.Text, default=None)
-    types = db.Column(db.Integer, db.ForeignKey('type.id'))
-    skills = db.Column(db.Integer, db.ForeignKey('skill.id'))
-    
-    type = db.relationship('Type', foreign_keys=[types], backref=db.backref('pokemons'))
-    skill = db.relationship('Skill', foreign_keys=[skills], backref=db.backref('pokemons'))
+class Skill(Base):
+    __tablename__ = "skill"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), index=True)
+    description = Column(Text, nullable=True)
+    power = Column(Integer, nullable=True)
+    accuracy = Column(Integer, nullable=True)
+    max_life_point = Column(Integer, nullable=True)
+    type_name = Column(String(20), ForeignKey("type.name"))
 
-# Routes
-@app.route('/types', methods=['GET'])
-def get_types():
-    return jsonify({"message": "GET types"})
+class Pokemon(Base):
+    __tablename__ = "pokemon"
+    id_pokedex = Column(Integer, primary_key=True, index=True)
+    name = Column(String(20), index=True)
+    size = Column(Float, nullable=True)
+    weight = Column(Float, nullable=True)
+    stats = Column(Integer, nullable=True)
+    image = Column(Text, nullable=True)
+    types = Column(Integer, ForeignKey("type.id"))
+    skills = Column(Integer, ForeignKey("skill.id"))
 
-@app.route('/types', methods=['POST'])
-def create_type():
-    return jsonify({"message": "POST type"})
+Base.metadata.create_all(bind=engine)
 
-@app.route('/types/<type_name>', methods=['GET'])
-def get_type(type_name):
-    return jsonify({"message": f"GET type {type_name}"})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-@app.route('/types/<type_name>', methods=['PUT'])
-def update_type(type_name):
-    return jsonify({"message": f"PUT type {type_name}"})
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-@app.route('/types/<type_name>', methods=['DELETE'])
-def delete_type(type_name):
-    return jsonify({"message": f"DELETE type {type_name}"})
+app = FastAPI()
 
+@app.get("/pokemon/")
+def get_all_pokemon(db: Session = Depends(get_db)):
+    pokemons = db.query(Pokemon).all()
+    return pokemons
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# Example route to get a specific Pokemon by ID
+@app.get("/pokemon/{pokemon_id}")
+def get_pokemon_by_id(pokemon_id: int, db: Session = Depends(get_db)):
+    pokemon = db.query(Pokemon).filter(Pokemon.id_pokedex == pokemon_id).first()
+    if pokemon:
+        return pokemon
+    raise HTTPException(status_code=404, detail="Pokemon not found")
+
+# Example route to create a new Pokemon
+@app.post("/pokemon/")
+def create_pokemon(pokemon: Pokemon, db: Session = Depends(get_db)):
+    db_pokemon = Pokemon(**pokemon.dict())
+    db.add(db_pokemon)
+    db.commit()
+    db.refresh(db_pokemon)
+    return db_pokemon
+
+# Example route to update a Pokemon by ID
+@app.put("/pokemon/{pokemon_id}")
+def update_pokemon(pokemon_id: int, updated_pokemon: Pokemon, db: Session = Depends(get_db)):
+    db_pokemon = db.query(Pokemon).filter(Pokemon.id_pokedex == pokemon_id).first()
+    if db_pokemon:
+        for key, value in updated_pokemon.dict().items():
+            setattr(db_pokemon, key, value)
+        db.commit()
+        return db_pokemon
+    raise HTTPException(status_code=404, detail="Pokemon not found")
+
+# Example route to delete a Pokemon by ID
+@app.delete("/pokemon/{pokemon_id}")
+def delete_pokemon(pokemon_id: int, db: Session = Depends(get_db)):
+    db_pokemon = db.query(Pokemon).filter(Pokemon.id_pokedex == pokemon_id).first()
+    if db_pokemon:
+        db.delete(db_pokemon)
+        db.commit()
+        return {"message": "Pokemon deleted successfully"}
+    raise HTTPException(status_code=404, detail="Pokemon not found")
+
+# Additional routes
+
+# Example route to get all types
+@app.get("/types/")
+def get_all_types(db: Session = Depends(get_db)):
+    types = db.query(Type).all()
+    return types
+
+# Example route to get a specific type by ID
+@app.get("/types/{type_id}")
+def get_type_by_id(type_id: int, db: Session = Depends(get_db)):
+    type_entity = db.query(Type).filter(Type.id == type_id).first()
+    if type_entity:
+        return type_entity
+    raise HTTPException(status_code=404, detail="Type not found")
