@@ -24,8 +24,24 @@ async def get_pokemons():
 async def get_pokemons_by_id(pokemon_id : int):
     query = "SELECT * FROM Pokemon WHERE id_pokedex = :pokemon_id"
     values = {"pokemon_id" : pokemon_id}
-    pokemons = await database.fetch_one(query, values)
-    if not pokemons:
+    pokemon = await database.fetch_one(query, values)
+    if not pokemon:
         raise HTTPException(status_code=404, detail="Pas de pokemons ayant cet ID")
-    return pokemons
+    return pokemon
 
+@app.get("/api/types/{type_id}")
+async def get_types_by_id(type_id : int):
+    query = "SELECT * FROM Type WHERE id = :type_id"
+    values = {"type_id" : type_id}
+    type = await database.fetch_one(query, values)
+    if not type:
+        raise HTTPException(status_code=404, detail="Pas de type ayant cet ID")
+    return type
+
+@app.get("/api/abilities")
+async def get_abilities():
+    query = "SELECT * FROM Skill"
+    skills = await database.fetch_all(query)
+    if not skills:
+        raise HTTPException(status_code=404, detail="Pas de capacités trouvées")
+    return skills
