@@ -1,15 +1,21 @@
-from typing import Union
+from databases import Database
+from fastapi import FastAPI, HTTPException
 
-from fastapi import FastAPI
 
 app = FastAPI()
+
+database = Database("sqlite:///./db/pokemon.sqlite")
 
 
 @app.get("/")
 def read_root():
     return {"Hello": "World"}
 
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
+# Récupère la liste de tous les pokémons
+@app.get("/pokemons")
+async def get_pokemons():
+    query = "SELECT * FROM Pokemon"
+    pokemons = await database.fetch_all(query)
+    if not pokemons:
+        raise HTTPException(status_code=404, detail="No Pokémons found")
+    return pokemons
