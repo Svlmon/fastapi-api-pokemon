@@ -46,7 +46,7 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-L'API sera accessible à l'adresse http://localhost:8000 pour une utilisation locale.
+API accessible à l'adresse http://localhost:8000
 
 ## Base de données 
 
