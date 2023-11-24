@@ -1,13 +1,13 @@
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, Field
+from typing import List, Optional
 
 
 class Pokemon(BaseModel):
-    pokedex_id: int
+    id_pokedex: Optional[int] = Field( primary_key=True)
     name: str
     size: float
     weight: float
-    basic_stats: float
+    stats: float
     image: str
     types: List[int]
     skills: List[int]
@@ -18,7 +18,7 @@ class PokemonCreate(Pokemon):
 
 
 class Type(BaseModel):
-    id: int
+    id: Optional[int] = Field( primary_key=True)
     name: str
 
 
@@ -32,7 +32,7 @@ class Skill(BaseModel):
     description: str
     power: int
     accuracy: int
-    life_max: int
+    pp_max: int
     type_name: str
 
 
