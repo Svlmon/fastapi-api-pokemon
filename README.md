@@ -103,7 +103,7 @@ CREATE TABLE "Type" (
 
 ### Diagramme du schéma de données
 
-![image](C:\Users\foras\Documents\GitHub\fastapi-api-pokemon\api\asset\Model_BDD.png)
+![image](https://github.com/Svlmon/fastapi-api-pokemon/blob/main/api/asset/Model_BDD.png)
 
 ## Tests et fonctionnalités
 
